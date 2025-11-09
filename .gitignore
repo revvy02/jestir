@@ -2,6 +2,9 @@
 lune_packages/
 luau_packages/
 
+*.rbxl.lock
+*.rbxlx.lock
+
 # Pesde
 .pesde/
 
@@ -10,6 +13,8 @@ luau_packages/
 
 # OS
 .DS_Store
+
+.jestir
 
 # IDE
 .vscode/
