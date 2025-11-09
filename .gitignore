@@ -1,0 +1,19 @@
+# Lune packages
+lune_packages/
+luau_packages/
+
+# Pesde
+.pesde/
+
+# Environment
+.env
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

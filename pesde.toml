@@ -1,0 +1,20 @@
+name = "rvy/jestir"
+version = "0.0.0"
+private = true
+
+[engines]
+lune = "^0.10.4"
+pesde = "^0.7.1"
+
+[target]
+environment = "lune"
+bin = "src/init.luau"
+
+[dependencies]
+rbx_cloud = { workspace = "rvy/rbx_cloud", version = "^", target = "lune" }
+argparse = { name = "caveful_games/argparse", version = "^0.1.2", target = "lune" }
+rojo = { name = "pesde/rojo", version = "^7.6.0", target = "lune" }
+rir3 = { name = "rvy/rir3", version = "^0.0.4-rc.14", target = "lune" }
+
+[indices]
+default = "https://github.com/pesde-pkg/index"
