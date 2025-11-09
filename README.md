@@ -1,6 +1,6 @@
 # jestir
 
-Test runner for Roblox projects using Jest.
+CLI companion for [jest-luau](https://github.com/jsdotlua/jest-lua). Run your tests in your current Studio session, via Roblox Cloud execution, or by opening a new place file - all routes results back to the CLI.
 
 Requires [rir3](https://github.com/revvy02/rir3) for `--target once` and `--target serve`.
 
