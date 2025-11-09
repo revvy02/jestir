@@ -8,18 +8,23 @@ export type CloudConfig = {
 	placeId: string,
 	placeVersion: string?,
 	apiKey: string,
-	publish: boolean?,
+	upload: boolean?,
+	placePath: string?,
 }
 
 export type OnceConfig = {
 	target: "once",
 	placePath: string,
 	sourcemapPath: string?,
+	noError: boolean?,
+	noWarn: boolean?,
 }
 
 export type ServeConfig = {
 	target: "serve",
 	sourcemapPath: string?,
+	noError: boolean?,
+	noWarn: boolean?,
 }
 
 export type RunTargetConfig = CloudConfig | OnceConfig | ServeConfig

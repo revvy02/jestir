@@ -2,22 +2,61 @@
 
 local argparse = require("@pkg/argparse")
 local configModule = require("@self/config")
+local convertFilePathToRobloxPath = require("@self/sourcemap/convertFilePathToRobloxPath")
 local generateTestScript = require("@self/generateTestScript")
 local process = require("@lune/process")
 local runTestsCloud = require("@self/runner/runTestsCloud")
 local runTestsOnce = require("@self/runner/runTestsOnce")
 local runTestsServe = require("@self/runner/runTestsServe")
-local sourcemap = require("@self/sourcemap")
 local types = require("@self/runner/types")
 
 type RunTarget = types.RunTarget
 type RunTargetConfig = types.RunTargetConfig
+
+local function loadEnvFile(): { [string]: string }
+	local fs = require("@lune/fs")
+	local envPath = ".env"
+
+	if not fs.isFile(envPath) then
+		error("No .env file found")
+	end
+
+	local content = fs.readFile(envPath)
+	local env = {}
+
+	for line in content:gmatch("[^\r\n]+") do
+		local key, value = line:match("^([%w_]+)%s*=%s*(.+)$")
+		if key and value then
+			-- Remove quotes if present
+			value = value:match('^"(.+)"$') or value:match("^'(.+)'$") or value
+			env[key] = value
+		end
+	end
+
+	return env
+end
+
+local function getApiKey(): string
+	local keyInEnv = process.env.JESTIR_API_KEY
+	if keyInEnv then
+		return keyInEnv
+	end
+
+	local success, envFile = pcall(loadEnvFile)
+	if not success then
+		error("No environment variable set for JESTIR_API_KEY. Please set it in the environment or in the .env file.")
+	end
+
+	return envFile.JESTIR_API_KEY
+end
 
 local function parseArgs()
 	local parser: any = argparse():name("test"):description("Run tests")
 
 	parser:flag("--verbose", "Enable verbose output")
 	parser:flag("--ci", "Run in CI mode")
+	parser:flag("--no-error", "Suppress error and info output from rir3")
+	parser:flag("--no-warn", "Suppress warning output from rir3")
 	parser:option("--target", "Execution target: once, serve, or cloud (REQUIRED)")
 	parser:option("--project", "Project name from jestir.toml to run tests for")
 	parser:option("--test-name-pattern", "Pattern to match test names (regex)")
@@ -26,8 +65,8 @@ local function parseArgs()
 	parser:option("--place-id", "Place ID for cloud execution")
 	parser:option("--place-version", "Place version for cloud execution (optional, uses latest if not specified)")
 	parser:option("--api-key", "Roblox Open Cloud API key")
-	parser:flag("--publish", "Publish the place before running tests (cloud only)")
-	parser:option("--place", "Path to place file (for once target)")
+	parser:flag("--upload", "Upload the place file before running tests (cloud only)")
+	parser:option("--place", "Path to place file (for once target and cloud with --upload)")
 	parser:option("--sourcemap", "Path to sourcemap.json")
 
 	return parser:parse(process.args)
@@ -43,7 +82,7 @@ local function determineProjects(args, jestirConfig): ({ string }?, string?, str
 			error("jestir.toml not found. Cannot use --project flag without config file.")
 		end
 
-		local projectPath = configModule.getProjectPath(jestirConfig, args.project, sourcemap)
+		local projectPath = configModule.getProjectPath(jestirConfig, args.project, convertFilePathToRobloxPath)
 		if not projectPath then
 			error(`Project "{args.project}" not found in jestir.toml`)
 		end
@@ -51,7 +90,7 @@ local function determineProjects(args, jestirConfig): ({ string }?, string?, str
 		projects = { projectPath }
 	else
 		if jestirConfig then
-			projects = configModule.getAllProjectPaths(jestirConfig, sourcemap)
+			projects = configModule.getAllProjectPaths(jestirConfig, convertFilePathToRobloxPath)
 		end
 	end
 
@@ -60,13 +99,7 @@ end
 
 local function buildConfig(target: RunTarget, args, jestirConfig: any): RunTargetConfig
 	if target == "cloud" then
-		local apiKey: string? = args.api_key
-		if not apiKey then
-			apiKey = process.env.JESTIR_API_KEY
-		end
-		if not apiKey then
-			error("API key required for --target cloud. Provide via --api-key flag or JESTIR_API_KEY environment variable")
-		end
+		local apiKey: string = if typeof(args.api_key) == "string" then args.api_key else getApiKey()
 
 		local universeId: string? = args.universe_id
 		if not universeId and jestirConfig and typeof(jestirConfig.cloud) == "table" and typeof(jestirConfig.cloud.universe_id) == "string" then
@@ -95,9 +128,16 @@ local function buildConfig(target: RunTarget, args, jestirConfig: any): RunTarge
 			placeVersion = tostring(jestirConfig.cloud.place_version)
 		end
 
-		local publish: boolean? = args.publish
-		if publish == nil and jestirConfig and typeof(jestirConfig.cloud) == "table" and typeof(jestirConfig.cloud.publish) == "boolean" then
-			publish = jestirConfig.cloud.publish
+		local upload: boolean? = args.upload
+		if upload == nil and jestirConfig and typeof(jestirConfig.cloud) == "table" and typeof(jestirConfig.cloud.upload) == "boolean" then
+			upload = jestirConfig.cloud.upload
+		end
+
+		local placePath: string? = nil
+		if typeof(args.place) == "string" then
+			placePath = args.place
+		elseif jestirConfig and typeof(jestirConfig.once) == "table" and typeof(jestirConfig.once.place_file) == "string" then
+			placePath = jestirConfig.once.place_file
 		end
 
 		return {
@@ -106,7 +146,8 @@ local function buildConfig(target: RunTarget, args, jestirConfig: any): RunTarge
 			placeId = placeId,
 			placeVersion = placeVersion,
 			apiKey = apiKey,
-			publish = publish,
+			upload = upload,
+			placePath = placePath,
 		}
 	elseif target == "once" then
 		local placePath: string
@@ -124,6 +165,8 @@ local function buildConfig(target: RunTarget, args, jestirConfig: any): RunTarge
 			target = "once",
 			placePath = placePath,
 			sourcemapPath = sourcemapPath,
+			noError = args.no_error,
+			noWarn = args.no_warn,
 		}
 	else
 		local sourcemapPath: string? = if typeof(args.sourcemap) == "string" then args.sourcemap else "sourcemap.json"
@@ -131,6 +174,8 @@ local function buildConfig(target: RunTarget, args, jestirConfig: any): RunTarge
 		return {
 			target = "serve",
 			sourcemapPath = sourcemapPath,
+			noError = args.no_error,
+			noWarn = args.no_warn,
 		}
 	end
 end

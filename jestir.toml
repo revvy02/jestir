@@ -1,0 +1,26 @@
+[once]
+place_file = "test.rbxl"
+
+[cloud]
+place_id = 117880255951898
+universe_id = 9073386162
+place_version = 51
+upload = false
+
+[projects]
+hooks = "src/client/app/hooks"
+
+# [projects.client]
+# path = "src/client"
+# no_errors = true
+# no_warnings = true
+
+# [projects.shared]
+# path = "src/shared"
+# no_errors = true
+# no_warnings = true
+
+# [projects.server]
+# path = "src/server"
+# no_errors = true
+# no_warnings = true

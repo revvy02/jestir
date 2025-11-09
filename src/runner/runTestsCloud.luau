@@ -1,7 +1,7 @@
 --!strict
 
 local executeLuauTaskAsync = require("../utility/executeLuauTaskAsync")
-local publishPlaceAsync = require("../utility/publishPlaceAsync")
+local uploadPlaceAsync = require("../utility/uploadPlaceAsync")
 local types = require("./types")
 
 type CloudConfig = types.CloudConfig
@@ -16,7 +16,28 @@ local function runTestsCloud(scriptContent: string, config: CloudConfig): number
 	end
 
 	local placeVersion: number?
-	if config.placeVersion then
+
+	if config.upload then
+		if not config.placePath then
+			print("Error: --upload flag requires a place file path")
+			print("Provide via --place flag or jestir.toml [once.place_file]")
+			return 1
+		end
+
+		-- Upload the place file and use the returned version number
+		local uploadResult = uploadPlaceAsync({
+			universeId = universeId,
+			placeId = placeId,
+			apiKey = config.apiKey,
+			filePath = config.placePath,
+		})
+
+		if not uploadResult then
+			return 1
+		end
+
+		placeVersion = uploadResult.versionNumber
+	elseif config.placeVersion then
 		local versionNum = tonumber(config.placeVersion)
 		if not versionNum then
 			print("Error: Invalid place version (must be a number)")
@@ -25,25 +46,9 @@ local function runTestsCloud(scriptContent: string, config: CloudConfig): number
 		placeVersion = versionNum
 	end
 
-	if config.publish then
-		local publishSuccess, publishedVersion = publishPlaceAsync({
-			universeId = universeId,
-			placeId = placeId,
-			apiKey = config.apiKey,
-		})
-
-		if not publishSuccess then
-			return 1
-		end
-
-		if not placeVersion then
-			placeVersion = publishedVersion
-		end
-	end
-
 	if not placeVersion then
 		print("Error: Place version is required for cloud execution")
-		print("Specify via --place-version flag, jestir.toml [cloud] section, or use --publish flag")
+		print("Specify via --place-version flag, jestir.toml [cloud] section, or use --upload flag with a place file")
 		return 1
 	end
 

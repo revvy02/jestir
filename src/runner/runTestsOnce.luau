@@ -28,12 +28,23 @@ local function runTestsOnce(scriptContent: string, config: OnceConfig): number
 	local tempScriptPath = "temp_test_runner.luau"
 	fs.writeFile(tempScriptPath, scriptContent)
 
-	local result = process.exec("rir3", {
+	local args = {
 		"once",
 		tempScriptPath,
 		"--place",
 		tempPlacePath,
-	}, {
+	}
+
+	if config.noError then
+		table.insert(args, "--no-error")
+		table.insert(args, "--no-info")
+	end
+
+	if config.noWarn then
+		table.insert(args, "--no-warn")
+	end
+
+	local result = process.exec("rir3", args, {
 		stdio = "forward",
 	})
 

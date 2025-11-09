@@ -31,12 +31,12 @@ local function loadConfig(): JestirConfig?
 	return config :: JestirConfig
 end
 
-local function getAllProjectPaths(config: JestirConfig, sourcemap: any): { string }
+local function getAllProjectPaths(config: JestirConfig, convertFilePathToRobloxPath: (string) -> (string, string?)): { string }
 	local paths = {}
 
 	if config.projects then
 		for projectName, projectPath in config.projects do
-			local robloxPath, _ = sourcemap.convertFilePathToRobloxPath(projectPath)
+			local robloxPath, _ = convertFilePathToRobloxPath(projectPath)
 			if robloxPath and robloxPath ~= "" then
 				table.insert(paths, robloxPath)
 			end
@@ -46,7 +46,7 @@ local function getAllProjectPaths(config: JestirConfig, sourcemap: any): { strin
 	return paths
 end
 
-local function getProjectPath(config: JestirConfig, projectName: string, sourcemap: any): string?
+local function getProjectPath(config: JestirConfig, projectName: string, convertFilePathToRobloxPath: (string) -> (string, string?)): string?
 	if not config.projects then
 		return nil
 	end
@@ -56,7 +56,7 @@ local function getProjectPath(config: JestirConfig, projectName: string, sourcem
 		return nil
 	end
 
-	local robloxPath, _ = sourcemap.convertFilePathToRobloxPath(projectPath)
+	local robloxPath, _ = convertFilePathToRobloxPath(projectPath)
 	return if robloxPath ~= "" then robloxPath else nil
 end
 
